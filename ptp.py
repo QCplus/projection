@@ -19,23 +19,21 @@ NEGGRAMM                = -29
 def ptp(X, maxit, eps, verbose, kvec0, R0):
     curr = dict()
     info = RUNNING
-
-    ifac = 0    # !
+    ifac = 0
 
     if len(kvec0) == 0:
         ifac, curr = cold_start(X, curr)
     else:
         if R0.shape[0] != len(kvec0):
             info = INIT_ERROR
-            print("XXXX INIT_ERROR: nonmatching sizes of kvec0 {0}".format(kvec0.size))
-            print(" and R0 {0}.".format(R0.size))
+            print("XXXX INIT_ERROR: nonmatching sizes of kvec0 {}, {}".format(kvec0.shape[0], 1))
+            print(" and R0 {}, {}.".format(*R0.shape))
             print(" Reverting to the cold start.")
             ifac, curr = cold_start(X, curr)
         else:
-            # TODO: CHECK!!!
             curr['kvec'] = kvec0
             curr['R'] = R0
-            lmb = np.linalg.solve(R0, np.linalg.solve(R0.T, np.ones(kvec0.T.size))) # TODO: WHAT'S THIS
+            lmb = np.linalg.solve(R0, np.linalg.solve(R0.T, np.ones(kvec0.shape[0])))
             curr['lmb'] = lmb / sum(lmb)
     curr['z'] = X[:, curr['kvec']].dot(curr['lmb'])
 
