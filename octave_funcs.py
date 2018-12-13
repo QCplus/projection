@@ -13,4 +13,3 @@ def choldelete(R, i_del):
     R = np.delete(R, [range(i_del, rows)], 0)
     S = np.linalg.cholesky(S1.T.dot(S1) + S0.T.dot(S0)).T
     return np.r_[R, np.c_[np.zeros((rows-i_del-1, i_del)), S]]
-
