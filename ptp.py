@@ -1,7 +1,5 @@
 import numpy as np
 
-from octave_funcs import *
-
 OPTIMAL                 =   0
 OVERSIZED_BASIS         = -19
 LINDEP_BASIS            = -20
@@ -44,11 +42,11 @@ def ptp(X, maxit, eps, verbose, kvec0, R0):
         report_iter(report)
 
     vmin, ifac = get_ifac(X, curr['z'], eps)
+    while (report['iter'] <= maxit).all():
+        if ifac == -1:
+            info = OPTIMAL
+            break
 
-    if ifac == 0:
-        return curr['z'], eps, report['iter'], curr['lmb'], curr['kvec'], curr['R'], OPTIMAL
-
-    while ifac and (report['iter'] < maxit).all():
         curr['kvec'], curr['lmb'], curr['R'], del_iter = newbas(curr['kvec'], curr['lmb'], ifac, curr['R'], X, eps)
         curr['z'] = X[:, curr['kvec']].dot(curr['lmb'])
 
@@ -60,11 +58,7 @@ def ptp(X, maxit, eps, verbose, kvec0, R0):
         report['lenbas'] = len(curr['kvec'])
         if verbose > 0 and (report['iter'][0] % verbose == 0):
             report_iter(report)
-
         vmin, ifac = get_ifac(X, curr['z'], eps)
-        if ifac == 0:
-            info = OPTIMAL
-            break
 
     report['in'] = ifac
     report['zz'] = sumsq(curr['z'])
@@ -73,6 +67,7 @@ def ptp(X, maxit, eps, verbose, kvec0, R0):
     if verbose >= 0:
         if info == OPTIMAL:
             print("\nXXXX Solved to optimality\n")
+        report_iter(report)
     return curr['z'], eps, report['iter'], curr['lmb'], curr['kvec'], curr['R'], info
 
 
@@ -123,10 +118,11 @@ def newbas(kvec, lmb_old, ifac, R, X, eps):
 def get_ifac(X, z, epstol):
     v = z.dot(X) - sumsq(z)
     ifac = np.argmin(v)
+    vmin = v[ifac]
     reps = epstol * np.linalg.norm(X[:, ifac])
-    if v[ifac] > -reps:
-        ifac = 0
-    return v[ifac], ifac
+    if vmin > -reps:
+        ifac = -1
+    return vmin, ifac
 
 
 def lastadd(X, R):
@@ -166,3 +162,17 @@ def mid_lambda(lmb_old, lmb_new):
     imin = np.argmin(lmb)
     izero = np.array([i for i in range(lmb_new.shape[0])])[lmb_new < 0][imin]
     return lmb[imin] * lmb_new + (1 - lmb[imin]) * lmb_old, izero
+
+
+def sumsq(A):
+    return sum(A ** 2)
+
+
+def choldelete(R, i_del):
+    rows = R.shape[0]
+    S0 = np.array([R[i_del, (i_del+1):]])
+    S1 = R[(i_del+1):, (i_del+1):]
+    R = np.delete(R, i_del, 1)
+    R = np.delete(R, [range(i_del, rows)], 0)
+    S = np.linalg.cholesky(S1.T.dot(S1) + S0.T.dot(S0)).T
+    return np.r_[R, np.c_[np.zeros((rows-i_del-1, i_del)), S]]
