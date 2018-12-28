@@ -8,6 +8,7 @@ maxit = 500
 verbose = 1
 X = np.random.rand(50, 33) - 0.5
 z, reps, iter, lmb, kvec, R, info = ptp(X, maxit, epstol, verbose, [], [])
+zX_nz = z.dot(X) - np.linalg.norm(z)**2
 XX = X[:, kvec]
 lmb0 = np.random.rand(XX.shape[1])
 lmb0 /= sum(lmb0)
@@ -19,3 +20,5 @@ A = X[:, kvec].T.dot(X[:, kvec])
 R = np.linalg.cholesky(A).T
 lmb = proplus(kvec, ifac, R, X)
 print(sum(lmb))
+print("zX - ||z||^2 contains {} negative elements".format(sum(zX_nz < -1e-8)))
+
