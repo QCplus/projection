@@ -75,8 +75,8 @@ def proplus(kvec, ifac, R, X):
     g = X[:, ifac]
     r = g.dot(X[:, kvec])
     if len(kvec) == X.shape[0]:
-        lamb = np.linalg.solve(-R, np.linalg.solve(R.T, r))
-        return 1 / (1 + sum(lamb)) * np.c_[lamb, 1]
+        lmb = np.linalg.solve(-R, np.linalg.solve(R.T, r))
+        return 1 / (1 + sum(lmb)) * np.r_[lmb, 1]
     Re = np.c_[r, np.ones(r.shape)]
     Z = np.linalg.solve(R, np.linalg.solve(R.T, Re))
     A = np.array([[sumsq(g), 1], [1, 0]]) - Re.T.dot(Z)
