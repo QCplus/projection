@@ -43,7 +43,6 @@ def ptp(X, maxit, eps, verbose, kvec0, R0):
     if verbose >= 0:
         report_iter(report)
 
-    # vmin, ifac = get_ifac(X, curr['z'], eps)
     while (report['iter'] <= maxit).all():
         vmin, ifac = get_ifac(X, curr['z'], eps)
         report['zx'] = vmin
@@ -58,16 +57,11 @@ def ptp(X, maxit, eps, verbose, kvec0, R0):
         report['iter'][0] += 1
         report['iter'][1] += del_iter
         report['zz'] = sumsq(curr['z'])
-        # report['zx'] = vmin
-        # report['in'] = ifac
         report['lenbas'] = len(curr['kvec'])
         if verbose > 0 and (report['iter'][0] % verbose == 0):
             report_iter(report)
-        # vmin, ifac = get_ifac(X, curr['z'], eps)
 
-    # report['in'] = ifac
     report['zz'] = sumsq(curr['z'])
-    # report['zx'] = vmin
 
     if verbose >= 0:
         if info == OPTIMAL:
@@ -92,7 +86,6 @@ def proplus(kvec, ifac, R, X):
 def newbas(kvec, lmb_old, ifac, R, X):
     iter = 0
     lmb_new = proplus(kvec, ifac, R, X)
-    # kvec_new = kvec
     if all(lmb_new >= -epsmach):
         kvec = np.array([*kvec, ifac])
         R = lastadd(X[:, kvec], R)
@@ -103,8 +96,6 @@ def newbas(kvec, lmb_old, ifac, R, X):
         print(" ST-OPT !!!")
         exit(-1)
 
-    # kvec = np.array([*kvec[:izero], *kvec[(izero + 1):len(kvec)]])
-    # lmb = np.array([*lmb_m[:izero], *lmb_m[(izero + 1):len(lmb_m)]])
     kvec = np.r_[kvec[:izero], kvec[(izero + 1):]]
     lmb = np.r_[lmb_m[:izero], lmb_m[(izero + 1):]]
     R = choldelete(R, izero)
