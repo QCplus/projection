@@ -13,6 +13,8 @@ EXCESS_ITER             = -27
 RUNNING                 = -28
 NEGGRAMM                = -29
 
+epsmach = np.finfo(float).eps
+
 
 def ptp(X, maxit, eps, verbose, kvec0, R0):
     curr = dict()
@@ -41,28 +43,31 @@ def ptp(X, maxit, eps, verbose, kvec0, R0):
     if verbose >= 0:
         report_iter(report)
 
-    vmin, ifac = get_ifac(X, curr['z'], eps)
+    # vmin, ifac = get_ifac(X, curr['z'], eps)
     while (report['iter'] <= maxit).all():
+        vmin, ifac = get_ifac(X, curr['z'], eps)
+        report['zx'] = vmin
+        report['in'] = ifac
         if ifac == -1:
             info = OPTIMAL
             break
 
-        curr['kvec'], curr['lmb'], curr['R'], del_iter = newbas(curr['kvec'], curr['lmb'], ifac, curr['R'], X, eps)
+        curr['kvec'], curr['lmb'], curr['R'], del_iter = newbas(curr['kvec'], curr['lmb'], ifac, curr['R'], X)
         curr['z'] = X[:, curr['kvec']].dot(curr['lmb'])
 
         report['iter'][0] += 1
         report['iter'][1] += del_iter
         report['zz'] = sumsq(curr['z'])
-        report['zx'] = vmin
-        report['in'] = ifac
+        # report['zx'] = vmin
+        # report['in'] = ifac
         report['lenbas'] = len(curr['kvec'])
         if verbose > 0 and (report['iter'][0] % verbose == 0):
             report_iter(report)
-        vmin, ifac = get_ifac(X, curr['z'], eps)
+        # vmin, ifac = get_ifac(X, curr['z'], eps)
 
-    report['in'] = ifac
+    # report['in'] = ifac
     report['zz'] = sumsq(curr['z'])
-    report['zx'] = vmin
+    # report['zx'] = vmin
 
     if verbose >= 0:
         if info == OPTIMAL:
@@ -84,35 +89,37 @@ def proplus(kvec, ifac, R, X):
     return np.r_[-Z.dot(xit), xit[0]]
 
 
-def newbas(kvec, lmb_old, ifac, R, X, eps):
+def newbas(kvec, lmb_old, ifac, R, X):
     iter = 0
     lmb_new = proplus(kvec, ifac, R, X)
-    kvec_new = kvec
-    if all(lmb_new >= -eps):
-        kvec_new = np.array([*kvec_new, ifac])
-        R_new = lastadd(X[:, kvec_new], R)
-        return kvec_new, lmb_new, R_new, iter
+    # kvec_new = kvec
+    if all(lmb_new >= -epsmach):
+        kvec = np.array([*kvec, ifac])
+        R = lastadd(X[:, kvec], R)
+        return kvec, lmb_new, R, iter
 
     lmb_m, izero = mid_lambda(np.array([*lmb_old, 0]), lmb_new)
     if izero == -1:
         print(" ST-OPT !!!")
         exit(-1)
 
-    kvec_new = np.array([*kvec_new[:izero], *kvec_new[(izero + 1):len(kvec_new)]])
-    lmb = np.array([*lmb_m[:izero], *lmb_m[(izero + 1):len(lmb_m)]])
-    R_new = choldelete(R, izero)
-    kvec_new = np.array([*kvec_new, ifac])
-    R_new = lastadd(X[:, kvec_new], R_new)
-    lmb_new = baric(R_new)
+    # kvec = np.array([*kvec[:izero], *kvec[(izero + 1):len(kvec)]])
+    # lmb = np.array([*lmb_m[:izero], *lmb_m[(izero + 1):len(lmb_m)]])
+    kvec = np.r_[kvec[:izero], kvec[(izero + 1):]]
+    lmb = np.r_[lmb_m[:izero], lmb_m[(izero + 1):]]
+    R = choldelete(R, izero)
+    kvec = np.array([*kvec, ifac])
+    R = lastadd(X[:, kvec], R)
+    lmb_new = baric(R)
 
-    while any(lmb_new < -eps):
+    while any(lmb_new < -epsmach):
         lmb_m, izero = mid_lambda(lmb, lmb_new)
-        kvec_new = np.array([*kvec_new[:izero], *kvec_new[(izero + 1):len(kvec_new)]])
+        kvec = np.array([*kvec[:izero], *kvec[(izero + 1):len(kvec)]])
         lmb = np.array([*lmb_m[:izero], *lmb_m[(izero + 1):len(lmb_m)]])
-        R_new = choldelete(R_new, izero)
-        lmb_new = baric(R_new)
+        R = choldelete(R, izero)
+        lmb_new = baric(R)
         iter += 1
-    return kvec_new, lmb_new, R_new, iter
+    return kvec, lmb_new, R, iter
 
 
 def get_ifac(X, z, epstol):
