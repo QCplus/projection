@@ -1,5 +1,8 @@
 import numpy as np
 
+from numpy.linalg import norm, solve
+from numpy.linalg import cholesky as chol
+
 OPTIMAL                 =   0
 OVERSIZED_BASIS         = -19
 LINDEP_BASIS            = -20
@@ -33,7 +36,7 @@ def ptp(X, maxit, eps, verbose, kvec0, R0):
         else:
             curr['kvec'] = kvec0
             curr['R'] = R0
-            lmb = np.linalg.solve(R0, np.linalg.solve(R0.T, np.ones(kvec0.shape[0])))
+            lmb = solve(R0, solve(R0.T, np.ones(kvec0.shape[0])))
             curr['lmb'] = lmb / sum(lmb)
     curr['z'] = X[:, curr['kvec']].dot(curr['lmb'])
 
@@ -74,10 +77,10 @@ def proplus(kvec, ifac, R, X):
     g = X[:, ifac]
     r = g.dot(X[:, kvec])
     if len(kvec) == X.shape[0]:
-        lmb = np.linalg.solve(-R, np.linalg.solve(R.T, r))
+        lmb = solve(-R, solve(R.T, r))
         return 1 / (1 + sum(lmb)) * np.r_[lmb, 1]
     Re = np.c_[r, np.ones(r.shape)]
-    Z = np.linalg.solve(R, np.linalg.solve(R.T, Re))
+    Z = solve(R, solve(R.T, Re))
     A = np.array([[sumsq(g), 1], [1, 0]]) - Re.T.dot(Z)
     xit = np.linalg.inv(A)[:, 1]
     return np.r_[-Z.dot(xit), xit[0]]
@@ -117,7 +120,7 @@ def get_ifac(X, z, epstol):
     v = z.dot(X) - sumsq(z)
     ifac = np.argmin(v)
     vmin = v[ifac]
-    reps = epstol * np.linalg.norm(X[:, ifac])
+    reps = epstol * norm(X[:, ifac])
     if vmin > -reps:
         ifac = -1
     return vmin, ifac
@@ -125,7 +128,7 @@ def get_ifac(X, z, epstol):
 
 def lastadd(X, R):
     u = X[:, X.shape[1]-1].dot(X)
-    q = np.linalg.solve(R.T, u[0:len(u) - 1].T)
+    q = solve(R.T, u[0:len(u) - 1].T)
     zz = np.sqrt(abs(u[-1] - sumsq(q)))
     RU = np.r_[R, np.zeros((1, R.shape[1]))]
     return np.c_[RU, np.r_[q, zz]]
@@ -133,7 +136,7 @@ def lastadd(X, R):
 
 def cold_start(X, curr):
     ifac = np.argmin(sumsq(X))
-    curr['R'] = np.array([[np.linalg.norm(X[:, ifac])]])
+    curr['R'] = np.array([[norm(X[:, ifac])]])
     curr['kvec'] = np.array([ifac])
     curr['lmb'] = np.array([1])
     return ifac, curr
@@ -149,7 +152,7 @@ def report_iter(report):
 
 
 def baric(R):
-    lamb = np.linalg.solve(R, np.linalg.solve(R.T, np.ones(R.shape[0])))
+    lamb = solve(R, solve(R.T, np.ones(R.shape[0])))
     return lamb / sum(lamb)
 
 
@@ -172,5 +175,5 @@ def choldelete(R, i_del):
     S1 = R[(i_del+1):, (i_del+1):]
     R = np.delete(R, i_del, 1)
     R = np.delete(R, [range(i_del, rows)], 0)
-    S = np.linalg.cholesky(S1.T.dot(S1) + S0.T.dot(S0)).T
+    S = chol(S1.T.dot(S1) + S0.T.dot(S0)).T
     return np.r_[R, np.c_[np.zeros((rows-i_del-1, i_del)), S]]
