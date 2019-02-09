@@ -1,7 +1,8 @@
 import numpy as np
 
-from numpy.linalg import norm, solve
+from numpy.linalg import norm
 from numpy.linalg import cholesky as chol
+from scipy.linalg import solve_triangular
 
 OPTIMAL                 =   0
 OVERSIZED_BASIS         = -19
@@ -36,7 +37,7 @@ def ptp(X, maxit, eps, verbose, kvec0, R0):
         else:
             curr['kvec'] = kvec0
             curr['R'] = R0
-            lmb = solve(R0, solve(R0.T, np.ones(kvec0.shape[0])))
+            lmb = solve_chol(R0, np.ones(kvec0.shape[0]))
             curr['lmb'] = lmb / sum(lmb)
     curr['z'] = X[:, curr['kvec']].dot(curr['lmb'])
 
@@ -63,7 +64,6 @@ def ptp(X, maxit, eps, verbose, kvec0, R0):
         report['lenbas'] = len(curr['kvec'])
         if verbose > 0 and (report['iter'][0] % verbose == 0):
             report_iter(report)
-
     report['zz'] = sumsq(curr['z'])
 
     if verbose >= 0:
@@ -74,42 +74,43 @@ def ptp(X, maxit, eps, verbose, kvec0, R0):
 
 
 def proplus(kvec, ifac, R, X):
-    g = X[:, ifac]
-    r = g.dot(X[:, kvec])
+    r = X[:, ifac].dot(X[:, kvec])
     if len(kvec) == X.shape[0]:
-        lmb = solve(-R, solve(R.T, r))
+        lmb = solve_chol(R, r)
         return 1 / (1 + sum(lmb)) * np.r_[lmb, 1]
     Re = np.c_[r, np.ones(r.shape)]
-    Z = solve(R, solve(R.T, Re))
-    A = np.array([[sumsq(g), 1], [1, 0]]) - Re.T.dot(Z)
+    Z = solve_chol(R, Re)
+    A = np.c_[[sumsq(X[:, ifac]), 1], [1, 0]] - Re.T.dot(Z)
     xit = np.linalg.inv(A)[:, 1]
     return np.r_[-Z.dot(xit), xit[0]]
 
 
 def newbas(kvec, lmb_old, ifac, R, X):
     iter = 0
+
     lmb_new = proplus(kvec, ifac, R, X)
+
     if all(lmb_new >= -epsmach):
-        kvec = np.array([*kvec, ifac])
+        kvec = np.r_[kvec, ifac]
         R = lastadd(X[:, kvec], R)
         return kvec, lmb_new, R, iter
 
-    lmb_m, izero = mid_lambda(np.array([*lmb_old, 0]), lmb_new)
+    lmb, izero = mid_lambda(np.r_[lmb_old, 0], lmb_new)
     if izero == -1:
         print(" ST-OPT !!!")
         exit(-1)
 
-    kvec = np.r_[kvec[:izero], kvec[(izero + 1):]]
-    lmb = np.r_[lmb_m[:izero], lmb_m[(izero + 1):]]
+    kvec = np.delete(kvec, izero)
+    lmb = np.delete(lmb, izero)
     R = choldelete(R, izero)
-    kvec = np.array([*kvec, ifac])
+    kvec = np.r_[kvec, ifac]
     R = lastadd(X[:, kvec], R)
     lmb_new = baric(R)
 
     while any(lmb_new < -epsmach):
-        lmb_m, izero = mid_lambda(lmb, lmb_new)
-        kvec = np.array([*kvec[:izero], *kvec[(izero + 1):len(kvec)]])
-        lmb = np.array([*lmb_m[:izero], *lmb_m[(izero + 1):len(lmb_m)]])
+        lmb, izero = mid_lambda(lmb, lmb_new)
+        kvec = np.delete(kvec, izero)
+        lmb = np.delete(lmb, izero)
         R = choldelete(R, izero)
         lmb_new = baric(R)
         iter += 1
@@ -128,7 +129,7 @@ def get_ifac(X, z, epstol):
 
 def lastadd(X, R):
     u = X[:, X.shape[1]-1].dot(X)
-    q = solve(R.T, u[0:len(u) - 1].T)
+    q = solve_triangular(R.T, u[0:len(u) - 1].T, lower=True, check_finite=False)
     zz = np.sqrt(abs(u[-1] - sumsq(q)))
     RU = np.r_[R, np.zeros((1, R.shape[1]))]
     return np.c_[RU, np.r_[q, zz]]
@@ -143,6 +144,7 @@ def cold_start(X, curr):
 
 
 def report_iter(report):
+    #return
     print(" ++", end='')
     print(" iter {iter[0]:4d}(+) {iter[1]:4d}(-)".format(iter=report["iter"]), end='')
     print(" len {:4d}".format(report["lenbas"]), end='')
@@ -152,16 +154,16 @@ def report_iter(report):
 
 
 def baric(R):
-    lamb = solve(R, solve(R.T, np.ones(R.shape[0])))
-    return lamb / sum(lamb)
+    lmb = solve_chol(R, np.ones(R.shape[0]))
+    return lmb / sum(lmb)
 
 
 def mid_lambda(lmb_old, lmb_new):
     if all(lmb_new < 0):
         return lmb_new, -1
-    lmb = (lmb_old / (lmb_old - lmb_new))[lmb_new < 0]
+    lmb = (lmb_old / (lmb_old - lmb_new))[lmb_new < -epsmach]
     imin = np.argmin(lmb)
-    izero = np.array([i for i in range(lmb_new.shape[0])])[lmb_new < 0][imin]
+    izero = np.array([i for i in range(lmb_new.shape[0])])[lmb_new < -epsmach][imin]
     return lmb[imin] * lmb_new + (1 - lmb[imin]) * lmb_old, izero
 
 
@@ -177,3 +179,7 @@ def choldelete(R, i_del):
     R = np.delete(R, [range(i_del, rows)], 0)
     S = chol(S1.T.dot(S1) + S0.T.dot(S0)).T
     return np.r_[R, np.c_[np.zeros((rows-i_del-1, i_del)), S]]
+
+
+def solve_chol(R, b):
+    return solve_triangular(R, solve_triangular(R.T, b, lower=True, check_finite=False), check_finite=False)
