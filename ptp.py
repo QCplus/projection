@@ -74,7 +74,7 @@ def ptp(X, maxit, eps, verbose, kvec0, R0):
 
 
 def proplus(kvec, ifac, R, X):
-    r = X[:, ifac].dot(X[:, kvec])
+    r = X[:, ifac] @ X[:, kvec]
     if len(kvec) == X.shape[0]:
         lmb = solve_chol(R, r)
         return 1 / (1 + sum(lmb)) * np.r_[lmb, 1]
@@ -82,7 +82,7 @@ def proplus(kvec, ifac, R, X):
     Z = solve_chol(R, Re)
     A = np.c_[[sumsq(X[:, ifac]), 1], [1, 0]] - Re.T.dot(Z)
     xit = np.linalg.inv(A)[:, 1]
-    return np.r_[-Z.dot(xit), xit[0]]
+    return np.r_[-Z @ xit, xit[0]]
 
 
 def newbas(kvec, lmb_old, ifac, R, X):
@@ -128,7 +128,7 @@ def get_ifac(X, z, epstol):
 
 
 def lastadd(X, R):
-    u = X[:, X.shape[1]-1].dot(X)
+    u = X[:, X.shape[1]-1] @ X
     q = solve_triangular(R.T, u[0:len(u) - 1].T, lower=True, check_finite=False)
     zz = np.sqrt(abs(u[-1] - sumsq(q)))
     RU = np.r_[R, np.zeros((1, R.shape[1]))]
