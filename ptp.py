@@ -144,7 +144,6 @@ def cold_start(X, curr):
 
 
 def report_iter(report):
-    #return
     print(" ++", end='')
     print(" iter {iter[0]:4d}(+) {iter[1]:4d}(-)".format(iter=report["iter"]), end='')
     print(" len {:4d}".format(report["lenbas"]), end='')
