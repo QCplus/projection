@@ -20,7 +20,7 @@ NEGGRAMM                = -29
 epsmach = np.finfo(float).eps
 
 
-def ptp(X, maxit, eps, verbose, kvec0, R0):
+def ptp(X, maxit, eps, verbose, kvec0=np.array([]), R0=np.array([])):
     curr = dict()
     info = RUNNING
     ifac = 0
