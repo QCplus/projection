@@ -182,3 +182,11 @@ def choldelete(R, i_del):
 
 def solve_chol(R, b):
     return solve_triangular(R, solve_triangular(R.T, b, lower=True, check_finite=False), check_finite=False)
+
+
+def cone_project(A, b, m, mstep, eps, maxiterptp):
+    while True:
+        z, _, _, lmb, kvec, _, info = ptp(np.c_[m * A - b.reshape(len(b), 1), -b], maxiterptp, eps, -1)
+        if A.shape[1] in kvec:
+            return z + b, m, kvec[kvec != A.shape[1]], lmb[kvec != A.shape[1]]
+        m *= mstep
