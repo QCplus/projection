@@ -76,7 +76,7 @@ def ptp(X, maxit, eps, verbose, kvec0=np.array([]), R0=np.array([])):
 def proplus(kvec, ifac, R, X):
     r = X[:, ifac] @ X[:, kvec]
     if len(kvec) == X.shape[0]:
-        lmb = solve_chol(R, r)
+        lmb = -solve_chol(R, r)
         return 1 / (1 + sum(lmb)) * np.r_[lmb, 1]
     Re = np.c_[r, np.ones(r.shape)]
     Z = solve_chol(R, Re)
@@ -185,8 +185,13 @@ def solve_chol(R, b):
 
 
 def cone_project(A, b, m, mstep, eps, maxiterptp):
+    if mstep < 1. + 1e-8:
+        print("Invalid step!")
+        return [], m, [], []
+    iters = 0
     while True:
         z, _, _, lmb, kvec, _, info = ptp(np.c_[m * A - b.reshape(len(b), 1), -b], maxiterptp, eps, -1)
+        iters += 1
         if A.shape[1] in kvec:
             return z + b, m, kvec[kvec != A.shape[1]], lmb[kvec != A.shape[1]]
         m *= mstep
